@@ -18,14 +18,18 @@ autoscaling:
 
   targetCPUUtilizationPercentage: 70
 
+replicaCount: 2
+
+secrets:
+  postgresPassword: "django_password"
+  secretKey: "django-secret-key"
+
 config:
   DEBUG: "1"
-  SECRET_KEY: "django-secret-key"
 
   POSTGRES_DB: "django_db"
   POSTGRES_USER: "django_user"
-  POSTGRES_PASSWORD: "django_password"
   POSTGRES_HOST: "db"
   POSTGRES_PORT: "5432"
 
-  ALLOWED_HOSTS: "a8b30b45cbc6645e7a0a4dd9229d5c62-1787319652.eu-west-1.elb.amazonaws.com"
+  ALLOWED_HOSTS: "*"

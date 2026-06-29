@@ -29,7 +29,7 @@ module "ecr" {
 module "eks" {
   source          = "./modules/eks"          
   cluster_name    = "eks-cluster-demo"            # Назва кластера
-  subnet_ids      = module.vpc.public_subnets     # ID підмереж
+  subnet_ids      = module.vpc.private_subnets     # ID підмереж
   instance_type   = "t3.small"                    # Тип інстансів
   desired_size    = 2                             # Бажана кількість нодів
   max_size        = 2                             # Максимальна кількість нодів
