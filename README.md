@@ -1,6 +1,6 @@
 # DevOps Infrastructure as Code
 
-This repository contains Terraform configurations for managing AWS infrastructure including VPC, ECR, and S3 backend resources.
+This repository contains Terraform configurations for managing AWS infrastructure including VPC, ECR, S3 backend resources, and a Helm chart for deploying the Django application.
 
 ## Getting Started
 
@@ -44,6 +44,32 @@ Applies a previously saved plan without prompting for confirmation.
 terraform destroy
 ```
 Destroys all resources managed by Terraform. **Use with caution** - this will delete all infrastructure defined in your Terraform configuration.
+
+## Docker, ECR, and Helm Deployment
+
+The Django application Dockerfile lives in the `django/` folder. Build the image from there, push it to ECR, then deploy it with Helm.
+
+### 1. Build the Docker Image
+```bash
+cd django
+docker build -t django-app:latest .
+```
+
+### 2. Log In to ECR and Push the Image
+Use the ECR repository URL from `terraform output repository_url`.
+
+```bash
+aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <account-id>.dkr.ecr.<region>.amazonaws.com
+docker tag django-app:latest <ecr-repository-url>:latest
+docker push <ecr-repository-url>:latest
+```
+
+### 3. Deploy with Helm
+Update `charts/django-app/values.yaml` if needed, then install or upgrade the release:
+
+```bash
+helm upgrade --install django-app ./charts/django-app -f ./charts/django-app/values.yaml
+```
 
 ## Project Modules
 
@@ -117,6 +143,8 @@ terraform destroy
 - `backend.tf` - Backend configuration for remote state
 - `outputs.tf` - Output values after resource creation
 - `terraform.tfstate` - Current state file (local)
+- `charts/django-app/` - Helm chart for the Django application
+- `django/` - Django app, Dockerfile, and docker-compose setup
 - `modules/` - Reusable Terraform modules
   - `vpc/` - VPC infrastructure
   - `ecr/` - Container registry
