@@ -1,0 +1,35 @@
+image:
+  repository: 460589479898.dkr.ecr.eu-west-1.amazonaws.com/lesson-5-ecr
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: LoadBalancer
+  port: 8000
+
+ingress:
+  enabled: false
+
+autoscaling:
+  enabled: true
+
+  minReplicas: 2
+  maxReplicas: 6
+
+  targetCPUUtilizationPercentage: 70
+
+replicaCount: 2
+
+secrets:
+  postgresPassword: "django_password"
+  secretKey: "django-secret-key"
+
+config:
+  DEBUG: "1"
+
+  POSTGRES_DB: "django_db"
+  POSTGRES_USER: "django_user"
+  POSTGRES_HOST: "db"
+  POSTGRES_PORT: "5432"
+
+  ALLOWED_HOSTS: "*"
