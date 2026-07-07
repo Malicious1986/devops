@@ -3,16 +3,18 @@ def IMAGE_NAME   = "lesson-5-ecr"
 def IMAGE_TAG    = "latest"
 
 podTemplate(
-  serviceAccountName: 'jenkins-sa',
-  containers: [
-    containerTemplate(
-      name: 'kaniko',
-      image: 'gcr.io/kaniko-project/executor:v1.16.0-debug',
-      command: 'sleep',
-      args: '99d',
-      alwaysPullImage: true
-    )
-  ]
+  yaml: """
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-sa
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:v1.16.0-debug
+    imagePullPolicy: Always
+    command: ['sleep']
+    args: ['99d']
+"""
 ) {
   node(POD_LABEL) {
     checkout scm
