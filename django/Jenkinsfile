@@ -1,45 +1,28 @@
-pipeline {
-  agent {
-    kubernetes {
-      cloud 'kubernetes'
-      yaml """
-apiVersion: v1
-kind: Pod
-metadata:
-  labels:
-    some-label: jenkins-kaniko
-spec:
-  serviceAccountName: jenkins-sa
-  containers:
-    - name: kaniko
-      image: gcr.io/kaniko-project/executor:v1.16.0-debug
-      imagePullPolicy: Always
-      command:
-        - sleep
-      args:
-        - 99d
-"""
-    }
-  }
+def ECR_REGISTRY = "460589479898.dkr.ecr.eu-west-1.amazonaws.com"
+def IMAGE_NAME   = "lesson-5-ecr"
+def IMAGE_TAG    = "latest"
 
-  environment {
-    ECR_REGISTRY = "460589479898.dkr.ecr.eu-west-1.amazonaws.com"
-    IMAGE_NAME   = "lesson-5-ecr"
-    IMAGE_TAG    = "latest"
-  }
-
-  stages {
-    stage('Build & Push Docker Image') {
-      steps {
-        container('kaniko') {
-          sh '''
-            /kaniko/executor \
-              --context $(pwd)/django \
-              --dockerfile $(pwd)/django/Dockerfile \
-              --destination=$ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
-          '''
-        }
-      }
+podTemplate(
+  serviceAccountName: 'jenkins-sa',
+  containers: [
+    containerTemplate(
+      name: 'kaniko',
+      image: 'gcr.io/kaniko-project/executor:v1.16.0-debug',
+      command: 'sleep',
+      args: '99d',
+      alwaysPullImage: true
+    )
+  ]
+) {
+  node(POD_LABEL) {
+    checkout scm
+    container('kaniko') {
+      sh """
+        /kaniko/executor \\
+          --context \$(pwd)/django \\
+          --dockerfile \$(pwd)/django/Dockerfile \\
+          --destination=${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+      """
     }
   }
 }
