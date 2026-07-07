@@ -1,7 +1,7 @@
-variable "bucket_name" {
-  description = "The name of the S3 bucket for Terraform state"
-  type = string
-}
+# variable "bucket_name" {
+#   description = "The name of the S3 bucket for Terraform state"
+#   type = string
+# }
 
 variable "table_name"  {
   description = "he name of the DynamoDB table for Terraform locks"
