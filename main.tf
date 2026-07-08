@@ -78,6 +78,13 @@ module "jenkins" {
   depends_on        = [module.eks, kubernetes_storage_class_v1.gp3, kubernetes_persistent_volume_claim_v1.jenkins_home]
 }
 
+module "argo_cd" {
+  source        = "./modules/argo_cd"
+  namespace     = "argocd"
+  chart_version = "5.46.4"
+  depends_on    = [module.eks]
+}
+
 resource "kubernetes_storage_class_v1" "gp3" {
   metadata {
     name = "gp3"
