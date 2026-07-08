@@ -96,7 +96,7 @@ controller:
                       scope: GLOBAL
                       id: github-token
                       username: Malicious1986
-                      password: "REPLACE_WITH_GITHUB_PAT"
+                      password: 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
                       description: GitHub PAT
 
 persistence:
