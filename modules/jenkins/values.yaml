@@ -23,7 +23,6 @@ controller:
       cpu: "100m"
       memory: "256Mi"
 
-  # Give the plugin manager JVM enough heap to parse the plugin catalog
   initContainerEnv:
     - name: JAVA_OPTS
       value: "-Xmx384m"

@@ -8,13 +8,13 @@ data "aws_eks_cluster_auth" "eks" {
   depends_on = [module.eks]
 }
 
-# module "s3_backend" {
-#     source = "./modules/s3-backend"
+module "s3_backend" {
+    source = "./modules/s3-backend"
 
-#     bucket_name = "terraform-state-bucket-6590"
+    bucket_name = "terraform-state-bucket-6590"
 
-#     table_name = "terraform-locks"
-# } 
+    table_name = "terraform-locks"
+} 
 
 module "vpc" {
     source = "./modules/vpc"

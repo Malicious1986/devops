@@ -1,6 +1,161 @@
 # DevOps Infrastructure as Code
 
-This repository contains Terraform configurations for managing AWS infrastructure including VPC, ECR, S3 backend resources, and a Helm chart for deploying the Django application.
+Full CI/CD platform on AWS using Terraform, Helm, Jenkins, and Argo CD for automated building, publishing, and deploying of a Django application.
+
+## Architecture Overview
+
+```
+Developer pushes code
+        │
+        ▼
+┌───────────────┐
+│    GitHub     │ ◄─────────────────────────────────┐
+│  (source of   │                                   │
+│    truth)     │                                   │
+└───────┬───────┘                                   │
+        │ trigger (manual / webhook)                │ git push (tag update)
+        ▼                                           │
+┌───────────────┐    push image    ┌─────────────┐  │
+│    Jenkins    │ ───────────────► │  Amazon ECR │  │
+│  (CI pipeline)│                  └─────────────┘  │
+│               │ ──────────────────────────────────┘
+│  Kaniko build │  update charts/django-app/values.yaml
+└───────────────┘
+        
+┌───────────────┐    watch repo    ┌─────────────────────┐
+│   Argo CD     │ ◄─────────────── │  charts/django-app/ │
+│  (CD / GitOps)│                  │  values.yaml (tag)  │
+└───────┬───────┘                  └─────────────────────┘
+        │ sync
+        ▼
+┌───────────────────────────────────────────┐
+│              Amazon EKS                   │
+│  ┌─────────────┐   ┌───────────────────┐  │
+│  │ Django pods │   │  Jenkins pod      │  │
+│  │  (default)  │   │  (jenkins ns)     │  │
+│  └─────────────┘   └───────────────────┘  │
+│  ┌──────────────────────────────────────┐  │
+│  │        Argo CD pods (argocd ns)      │  │
+│  └──────────────────────────────────────┘  │
+└───────────────────────────────────────────┘
+```
+
+## CI/CD Flow
+
+1. **Jenkins** detects a trigger → runs `goit-django-docker` pipeline:
+   - **Stage 1 — Build & Push**: Kaniko builds the Django Docker image and pushes it to ECR as `v1.0.<BUILD_NUMBER>`
+   - **Stage 2 — Update Chart Tag**: clones the repo, updates `tag:` in `charts/django-app/values.yaml`, pushes the commit to `main`
+2. **Argo CD** detects the new commit → automatically syncs the Helm chart → rolls out new Django pods with the updated image
+
+## Prerequisites
+
+- [Terraform](https://www.terraform.io/downloads.html) v1.0+
+- [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate IAM permissions
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) and [Helm](https://helm.sh/docs/intro/install/)
+
+## Deploy the Full Stack
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Malicious1986/devops.git
+cd devops
+
+# 2. Initialize Terraform (downloads providers and modules)
+terraform init
+
+# 3. Preview changes
+terraform plan
+
+# 4. Deploy everything (VPC, EKS, ECR, Jenkins, Argo CD)
+terraform apply
+```
+
+This provisions:
+- VPC with public/private subnets across 3 AZs
+- EKS cluster with EBS CSI driver
+- ECR repository for Docker images
+- Jenkins via Helm (with JCasC, seed-job, Kubernetes agent)
+- Argo CD via Helm (with Application and repo credentials)
+
+## Access Services
+
+After `terraform apply`, retrieve the service URLs:
+
+```bash
+# Jenkins
+kubectl get svc -n jenkins jenkins
+
+# Argo CD
+kubectl get svc -n argocd argo-cd-argocd-server
+
+# Django app
+kubectl get svc -n default django-app-django
+```
+
+### Jenkins initial password
+The admin password is set in `modules/jenkins/values.yaml` (`controller.admin.password`).
+
+### Argo CD initial password
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d && echo
+```
+
+## Trigger the CI/CD Pipeline
+
+1. Go to Jenkins → `goit-django-docker` → **Build Now**
+2. Jenkins builds the image, pushes to ECR, updates `charts/django-app/values.yaml` with the new tag
+3. Argo CD detects the commit and deploys the new version automatically
+
+## Project Structure
+
+```
+.
+├── main.tf                  # Root module — wires all modules together
+├── backend.tf               # S3 + DynamoDB remote state backend
+├── outputs.tf               # Root-level outputs
+├── providers.tf             # AWS, Kubernetes, Helm providers
+├── versions.tf              # Provider version constraints
+│
+├── modules/
+│   ├── vpc/                 # VPC, subnets, NAT gateways, routing
+│   ├── eks/                 # EKS cluster, node group, OIDC, EBS CSI
+│   ├── ecr/                 # ECR repository
+│   ├── s3-backend/          # S3 bucket + DynamoDB for Terraform state
+│   ├── jenkins/             # Jenkins Helm release + JCasC + IRSA
+│   │   ├── jenkins.tf       # IAM role, service account, storage class
+│   │   ├── values.yaml      # Jenkins configuration (plugins, JCasC, SA)
+│   │   └── ...
+│   └── argo_cd/             # Argo CD Helm release + app chart
+│       ├── argo_cd.tf       # helm_release for argo-cd and argo-apps
+│       ├── values.yaml      # Argo CD server config
+│       ├── charts/          # Local Helm chart for Argo CD Applications
+│       │   ├── Chart.yaml
+│       │   ├── values.yaml  # Application + repository definitions
+│       │   └── templates/
+│       │       ├── application.yaml
+│       │       └── repository.yaml
+│       └── ...
+│
+├── charts/
+│   └── django-app/          # Helm chart for the Django application
+│       ├── values.yaml      # Image repo, tag, service type, HPA config
+│       └── templates/       # Deployment, Service, ConfigMap, HPA
+│
+└── django/
+    ├── Dockerfile           # Django app container image
+    ├── Jenkinsfile          # CI/CD pipeline (build → push → update tag)
+    └── app/                 # Django application source code
+```
+
+## Tear Down
+
+```bash
+terraform destroy
+```
+
+> **Note:** This deletes all AWS resources including the EKS cluster, ECR images, and load balancers.
+
 
 ## Getting Started
 
