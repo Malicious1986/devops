@@ -1,7 +1,6 @@
 controller:
   admin:
     username: admin
-    # password is set via set_sensitive in jenkins.tf
 
   serviceType: LoadBalancer
   servicePort: 8080
