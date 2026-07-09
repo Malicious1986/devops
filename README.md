@@ -60,13 +60,17 @@ Developer pushes code
 git clone https://github.com/Malicious1986/devops.git
 cd devops
 
-# 2. Initialize Terraform (downloads providers and modules)
+# 2. Set sensitive variables (never commit these)
+export TF_VAR_jenkins_admin_password="your-jenkins-password"
+export TF_VAR_github_pat="your-github-pat"
+
+# 3. Initialize Terraform (downloads providers and modules)
 terraform init
 
-# 3. Preview changes
+# 4. Preview changes
 terraform plan
 
-# 4. Deploy everything (VPC, EKS, ECR, Jenkins, Argo CD)
+# 5. Deploy everything (VPC, EKS, ECR, Jenkins, Argo CD)
 terraform apply
 ```
 
@@ -144,7 +148,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 │
 └── django/
     ├── Dockerfile           # Django app container image
-    ├── Jenkinsfile          # CI/CD pipeline (build → push → update tag)
+├── Jenkinsfile              # CI/CD pipeline (build → push → update tag)
     └── app/                 # Django application source code
 ```
 
