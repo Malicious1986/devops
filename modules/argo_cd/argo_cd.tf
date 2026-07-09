@@ -19,7 +19,17 @@ resource "helm_release" "argo_apps" {
   create_namespace = false
 
   values = [
-    file("${path.module}/values.yaml")
+    file("${path.module}/values.yaml"),
+    jsonencode({
+      repositories = [
+        {
+          name     = "django-app"
+          url      = "https://github.com/Malicious1986/devops.git"
+          username = "Malicious1986"
+          password = var.github_pat
+        }
+      ]
+    })
   ]
 
   depends_on = [helm_release.argo_cd]

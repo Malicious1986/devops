@@ -15,3 +15,9 @@ variable "chart_version" {
   type        = string
   default     = "5.46.4"
 }
+
+variable "github_pat" {
+  description = "GitHub Personal Access Token for Argo CD repo access"
+  type        = string
+  sensitive   = true
+}
