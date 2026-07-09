@@ -1,7 +1,7 @@
 controller:
   admin:
     username: admin
-    password: admin123
+    # password is set via set_sensitive in jenkins.tf
 
   serviceType: LoadBalancer
   servicePort: 8080
@@ -78,7 +78,7 @@ controller:
                                 branches("*/main")
                               }
                             }
-                            scriptPath("django/Jenkinsfile")
+                            scriptPath("Jenkinsfile")
                           }
                         }
                       }

@@ -8,7 +8,14 @@ resource "helm_release" "jenkins" {
   replace          = true
 
   values = [
-    file("${path.module}/values.yaml")
+    file("${path.module}/values.yaml"),
+    jsonencode({
+      controller = {
+        admin = {
+          password = var.jenkins_admin_password
+        }
+      }
+    })
   ]
 }
 
