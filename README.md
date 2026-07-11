@@ -1,6 +1,8 @@
 # DevOps Infrastructure as Code
 
-Full CI/CD platform on AWS using Terraform, Helm, Jenkins, and Argo CD for automated building, publishing, and deploying of a Django application.
+Full CI/CD platform on AWS using Terraform, Helm, Jenkins, and Argo CD for automated building, publishing, and deploying a Django application.
+
+---
 
 ## Architecture Overview
 
@@ -21,7 +23,7 @@ Developer pushes code
 │               │ ──────────────────────────────────┘
 │  Kaniko build │  update charts/django-app/values.yaml
 └───────────────┘
-        
+
 ┌───────────────┐    watch repo    ┌─────────────────────┐
 │   Argo CD     │ ◄─────────────── │  charts/django-app/ │
 │  (CD / GitOps)│                  │  values.yaml (tag)  │
@@ -40,76 +42,7 @@ Developer pushes code
 └───────────────────────────────────────────┘
 ```
 
-## CI/CD Flow
-
-1. **Jenkins** detects a trigger → runs `goit-django-docker` pipeline:
-   - **Stage 1 — Build & Push**: Kaniko builds the Django Docker image and pushes it to ECR as `v1.0.<BUILD_NUMBER>`
-   - **Stage 2 — Update Chart Tag**: clones the repo, updates `tag:` in `charts/django-app/values.yaml`, pushes the commit to `main`
-2. **Argo CD** detects the new commit → automatically syncs the Helm chart → rolls out new Django pods with the updated image
-
-## Prerequisites
-
-- [Terraform](https://www.terraform.io/downloads.html) v1.0+
-- [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate IAM permissions
-- [kubectl](https://kubernetes.io/docs/tasks/tools/) and [Helm](https://helm.sh/docs/intro/install/)
-
-## Deploy the Full Stack
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/Malicious1986/devops.git
-cd devops
-
-# 2. Set sensitive variables (never commit these)
-export TF_VAR_jenkins_admin_password="your-jenkins-password"
-export TF_VAR_github_pat="your-github-pat"
-
-# 3. Initialize Terraform (downloads providers and modules)
-terraform init
-
-# 4. Preview changes
-terraform plan
-
-# 5. Deploy everything (VPC, EKS, ECR, Jenkins, Argo CD)
-terraform apply
-```
-
-This provisions:
-- VPC with public/private subnets across 3 AZs
-- EKS cluster with EBS CSI driver
-- ECR repository for Docker images
-- Jenkins via Helm (with JCasC, seed-job, Kubernetes agent)
-- Argo CD via Helm (with Application and repo credentials)
-
-## Access Services
-
-After `terraform apply`, retrieve the service URLs:
-
-```bash
-# Jenkins
-kubectl get svc -n jenkins jenkins
-
-# Argo CD
-kubectl get svc -n argocd argo-cd-argocd-server
-
-# Django app
-kubectl get svc -n default django-app-django
-```
-
-### Jenkins initial password
-The admin password is set in `modules/jenkins/values.yaml` (`controller.admin.password`).
-
-### Argo CD initial password
-```bash
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath="{.data.password}" | base64 -d && echo
-```
-
-## Trigger the CI/CD Pipeline
-
-1. Go to Jenkins → `goit-django-docker` → **Build Now**
-2. Jenkins builds the image, pushes to ECR, updates `charts/django-app/values.yaml` with the new tag
-3. Argo CD detects the commit and deploys the new version automatically
+---
 
 ## Project Structure
 
@@ -120,37 +53,264 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 ├── outputs.tf               # Root-level outputs
 ├── providers.tf             # AWS, Kubernetes, Helm providers
 ├── versions.tf              # Provider version constraints
+├── variables.tf             # Root input variables
 │
 ├── modules/
-│   ├── vpc/                 # VPC, subnets, NAT gateways, routing
+│   ├── vpc/                 # VPC, subnets, Internet Gateway, routing
 │   ├── eks/                 # EKS cluster, node group, OIDC, EBS CSI
 │   ├── ecr/                 # ECR repository
 │   ├── s3-backend/          # S3 bucket + DynamoDB for Terraform state
+│   ├── rds/                 # RDS instance or Aurora cluster (use_aurora flag)
+│   │   ├── rds.tf           # Standard aws_db_instance (use_aurora = false)
+│   │   ├── aurora.tf        # Aurora cluster + writer + readers (use_aurora = true)
+│   │   ├── shared.tf        # Shared subnet group and security group
+│   │   ├── variables.tf     # All input variables with types and defaults
+│   │   └── outputs.tf       # Endpoints, ports, security group ID
 │   ├── jenkins/             # Jenkins Helm release + JCasC + IRSA
-│   │   ├── jenkins.tf       # IAM role, service account, storage class
-│   │   ├── values.yaml      # Jenkins configuration (plugins, JCasC, SA)
-│   │   └── ...
+│   │   ├── jenkins.tf       # IAM role, service account, Helm release
+│   │   └── values.yaml      # Jenkins configuration (plugins, JCasC, SA)
 │   └── argo_cd/             # Argo CD Helm release + app chart
 │       ├── argo_cd.tf       # helm_release for argo-cd and argo-apps
 │       ├── values.yaml      # Argo CD server config
-│       ├── charts/          # Local Helm chart for Argo CD Applications
-│       │   ├── Chart.yaml
-│       │   ├── values.yaml  # Application + repository definitions
-│       │   └── templates/
-│       │       ├── application.yaml
-│       │       └── repository.yaml
-│       └── ...
+│       └── charts/          # Local Helm chart for Argo CD Applications
+│           ├── Chart.yaml
+│           ├── values.yaml  # Application + repository definitions
+│           └── templates/
+│               ├── application.yaml
+│               └── repository.yaml
 │
 ├── charts/
 │   └── django-app/          # Helm chart for the Django application
 │       ├── values.yaml      # Image repo, tag, service type, HPA config
 │       └── templates/       # Deployment, Service, ConfigMap, HPA
 │
-└── django/
-    ├── Dockerfile           # Django app container image
-├── Jenkinsfile              # CI/CD pipeline (build → push → update tag)
-    └── app/                 # Django application source code
+├── django/
+│   ├── Dockerfile           # Django app container image
+│   └── app/                 # Django application source code
+│
+└── Jenkinsfile              # CI/CD pipeline (build → push → update tag)
 ```
+
+---
+
+## Prerequisites
+
+- [Terraform](https://www.terraform.io/downloads.html) v1.0+
+- [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate IAM permissions
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) and [Helm](https://helm.sh/docs/intro/install/)
+
+---
+
+## Deploy the Full Stack
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Malicious1986/devops.git
+cd devops
+
+# 2. Set required environment variables (never commit these)
+export TF_VAR_jenkins_admin_password="your-jenkins-password"
+export TF_VAR_github_pat="your-github-pat"
+export TF_VAR_db_name="myapp"
+export TF_VAR_db_password="your-db-password"
+
+# Optional: deploy Aurora instead of standard RDS (default: false)
+# export TF_VAR_use_aurora=true
+
+# 3. Initialize Terraform
+terraform init
+
+# 4. Preview changes
+terraform plan
+
+# 5. Deploy everything
+terraform apply
+```
+
+This provisions:
+- VPC with public/private subnets across 3 AZs
+- EKS cluster with EBS CSI driver
+- ECR repository for Docker images
+- RDS PostgreSQL instance (or Aurora cluster if `TF_VAR_use_aurora=true`)
+- Jenkins via Helm (JCasC, seed-job, Kubernetes agent)
+- Argo CD via Helm (Application and repo credentials)
+
+---
+
+## Terraform Commands
+
+| Command | Description |
+|---------|-------------|
+| `terraform init` | Download providers and modules |
+| `terraform plan` | Preview changes without applying |
+| `terraform plan -out=tfplan` | Save plan to file |
+| `terraform apply` | Apply changes (prompts for confirmation) |
+| `terraform apply tfplan` | Apply a saved plan without prompting |
+| `terraform destroy` | **Destroy all resources** (irreversible) |
+
+---
+
+## Access Services
+
+After `terraform apply`:
+
+```bash
+# Jenkins
+kubectl get svc -n jenkins jenkins
+
+# Argo CD
+kubectl get svc -n argocd argo-cd-argocd-server
+
+# Django app
+kubectl get svc -n default django-app-django
+
+# Argo CD initial admin password
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d && echo
+```
+
+The Jenkins admin password is set via `TF_VAR_jenkins_admin_password`.
+
+---
+
+## CI/CD Flow
+
+1. Go to Jenkins → `goit-django-docker` → **Build Now**
+2. **Stage 1 — Build & Push**: Kaniko builds the Django image and pushes it to ECR as `v1.0.<BUILD_NUMBER>`
+3. **Stage 2 — Update Chart**: Jenkins updates `tag:` in `charts/django-app/values.yaml` and pushes to `main`
+4. **Argo CD** detects the commit and automatically syncs → new Django pods roll out
+
+---
+
+## Modules Reference
+
+### `modules/vpc/`
+Creates a complete VPC: CIDR-configurable VPC, public/private subnets across multiple AZs, Internet Gateway, NAT Gateways, and route tables.
+
+### `modules/eks/`
+Creates an EKS cluster with a managed node group, OIDC provider for IRSA, and installs the EBS CSI driver for persistent volume support.
+
+### `modules/ecr/`
+Creates an ECR repository with configurable image scanning on push and tag mutability.
+
+### `modules/s3-backend/`
+Creates an S3 bucket (versioning enabled) and DynamoDB table for Terraform remote state storage and locking.
+
+### `modules/rds/`
+Flexible module for deploying a relational database. Supports two modes via `use_aurora`:
+
+- `use_aurora = false` → standard `aws_db_instance` (PostgreSQL / MySQL)
+- `use_aurora = true` → Aurora cluster with writer + reader replicas
+
+In both cases creates: DB subnet group, security group, and parameter group.
+
+**Usage — Standard RDS:**
+```hcl
+module "rds" {
+  source = "./modules/rds"
+
+  name                       = "myapp-db"
+  use_aurora                 = false
+  engine                     = "postgres"
+  engine_version             = "17.5"
+  parameter_group_family_rds = "postgres17"
+  instance_class             = "db.t4g.micro"
+  allocated_storage          = 20
+  db_name                    = var.db_name
+  username                   = "postgres"
+  password                   = var.db_password
+  subnet_private_ids         = module.vpc.private_subnets
+  subnet_public_ids          = module.vpc.public_subnets
+  publicly_accessible        = false
+  vpc_id                     = module.vpc.vpc_id
+  multi_az                   = false
+  backup_retention_period    = 0
+  parameters = {
+    max_connections            = "200"
+    log_statement              = "all"
+    work_mem                   = "4096"
+    log_min_duration_statement = "500"
+  }
+  tags = { Environment = "dev", Project = "myapp" }
+}
+```
+
+**Usage — Aurora:**
+```hcl
+module "rds" {
+  source = "./modules/rds"
+
+  name                          = "myapp-db"
+  use_aurora                    = true
+  aurora_replica_count          = 1
+  engine_cluster                = "aurora-postgresql"
+  engine_version_cluster        = "15.3"
+  parameter_group_family_aurora = "aurora-postgresql15"
+  instance_class                = "db.t3.medium"
+  db_name                       = var.db_name
+  username                      = "postgres"
+  password                      = var.db_password
+  subnet_private_ids            = module.vpc.private_subnets
+  subnet_public_ids             = module.vpc.public_subnets
+  publicly_accessible           = false
+  vpc_id                        = module.vpc.vpc_id
+  backup_retention_period       = 7
+  tags = { Environment = "prod", Project = "myapp" }
+}
+```
+
+**RDS Variables:**
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `name` | `string` | — | Unique name for the instance or cluster |
+| `use_aurora` | `bool` | `false` | `true` = Aurora cluster, `false` = standard RDS |
+| `engine` | `string` | `"postgres"` | DB engine for standard RDS |
+| `engine_version` | `string` | `"17.5"` | Engine version for standard RDS |
+| `parameter_group_family_rds` | `string` | `"postgres17"` | Parameter group family for standard RDS |
+| `engine_cluster` | `string` | `"aurora-postgresql"` | DB engine for Aurora |
+| `engine_version_cluster` | `string` | `"15.3"` | Engine version for Aurora |
+| `parameter_group_family_aurora` | `string` | `"aurora-postgresql15"` | Parameter group family for Aurora |
+| `aurora_replica_count` | `number` | `1` | Number of Aurora reader replicas |
+| `instance_class` | `string` | `"db.t4g.micro"` | DB instance class |
+| `allocated_storage` | `number` | `20` | Storage in GB (standard RDS only) |
+| `db_name` | `string` | — | Initial database name |
+| `username` | `string` | — | Master username |
+| `password` | `string` | — | Master password (sensitive) |
+| `vpc_id` | `string` | — | VPC ID |
+| `subnet_private_ids` | `list(string)` | — | Private subnet IDs for subnet group |
+| `subnet_public_ids` | `list(string)` | — | Public subnet IDs (used if `publicly_accessible = true`) |
+| `publicly_accessible` | `bool` | `false` | Expose DB over the internet |
+| `multi_az` | `bool` | `false` | Multi-AZ deployment (not available on free tier) |
+| `backup_retention_period` | `number` | `0` | Days to keep automated backups (0 = disabled) |
+| `parameters` | `map(string)` | `{}` | Parameter group key/value settings |
+| `tags` | `map(string)` | `{}` | Tags for all resources |
+
+**How to change DB type:**
+```hcl
+# Switch to MySQL
+engine = "mysql"
+engine_version = "8.0"
+parameter_group_family_rds = "mysql8.0"
+
+# Change instance class
+instance_class = "db.t3.medium"   # more resources
+instance_class = "db.t4g.micro"   # free tier
+
+# Switch to Aurora MySQL
+use_aurora = true
+engine_cluster = "aurora-mysql"
+engine_version_cluster = "8.0"
+parameter_group_family_aurora = "aurora-mysql8.0"
+```
+
+### `modules/jenkins/`
+Deploys Jenkins via Helm with JCasC (Jenkins Configuration as Code), a seed job for pipeline auto-discovery, IRSA for ECR access, and a persistent volume for the Jenkins home directory.
+
+### `modules/argo_cd/`
+Deploys Argo CD via Helm and a local Helm chart that registers the GitHub repository and creates the `django-app` Application resource for GitOps-based deployments.
+
+---
 
 ## Tear Down
 
@@ -158,160 +318,12 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 terraform destroy
 ```
 
-> **Note:** This deletes all AWS resources including the EKS cluster, ECR images, and load balancers.
+> **Warning:** This permanently deletes all AWS resources including the EKS cluster, RDS database, ECR images, and load balancers.
 
-
-## Getting Started
-
-### Prerequisites
-- [Terraform](https://www.terraform.io/downloads.html) installed (v1.0+)
-- AWS credentials configured (via AWS CLI or environment variables)
-- AWS IAM permissions for EC2, ECR, S3, and VPC resources
-
-## Terraform Commands
-
-### 1. Initialize Terraform
-```bash
-terraform init
-```
-Initializes the Terraform working directory, downloads required providers, and sets up the backend configuration.
-
-### 2. Plan Infrastructure Changes
-```bash
-terraform plan
-```
-Creates an execution plan showing what resources will be created, modified, or destroyed. Review the plan before applying changes.
-
-```bash
-terraform plan -out=tfplan
-```
-Saves the plan to a file for later application, ensuring consistency between planning and applying.
-
-### 3. Apply Infrastructure Changes
-```bash
-terraform apply
-```
-Applies the changes to create or update AWS resources. Terraform will prompt for confirmation before proceeding.
-
-```bash
-terraform apply tfplan
-```
-Applies a previously saved plan without prompting for confirmation.
-
-### 4. Destroy Infrastructure
-```bash
-terraform destroy
-```
-Destroys all resources managed by Terraform. **Use with caution** - this will delete all infrastructure defined in your Terraform configuration.
-
-## Docker, ECR, and Helm Deployment
-
-The Django application Dockerfile lives in the `django/` folder. Build the image from there, push it to ECR, then deploy it with Helm.
-
-### 1. Build the Docker Image
-```bash
-cd django
-docker build -t django-app:latest .
-```
-
-### 2. Log In to ECR and Push the Image
-Use the ECR repository URL from `terraform output repository_url`.
-
-```bash
-aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <account-id>.dkr.ecr.<region>.amazonaws.com
-docker tag django-app:latest <ecr-repository-url>:latest
-docker push <ecr-repository-url>:latest
-```
-
-### 3. Deploy with Helm
-Update `charts/django-app/values.yaml` if needed, then install or upgrade the release:
-
-```bash
-helm upgrade --install django-app ./charts/django-app -f ./charts/django-app/values.yaml
-```
-
-## Project Modules
-
-### `modules/vpc/`
-**VPC (Virtual Private Cloud) Module**
-
-Creates a complete VPC infrastructure including:
-- VPC with configurable CIDR block
-- Public and private subnets across multiple availability zones
-- Internet Gateway for public subnet connectivity
-- Route tables and associations for traffic management
-
-- NAT Gateways placed in public subnets to provide outbound internet access for private subnets
-
-**Key Resources:**
-- `aws_vpc.main` - Main VPC resource
-- `aws_subnet.public` - Public subnets with auto-assigned public IPs
-- `aws_subnet.private` - Private subnets for internal resources
-- `aws_internet_gateway.igw` - Internet Gateway for public internet access
-
-- `aws_eip.nat` - Elastic IPs allocated for NAT Gateways
-- `aws_nat_gateway.nat` - NAT Gateways in public subnets used by private subnets for outbound access
-
-### `modules/ecr/`
-**ECR (Elastic Container Registry) Module**
-
-Creates AWS Elastic Container Registry repositories for storing and managing Docker container images:
-- Docker image storage and versioning
-- Image scanning on push for vulnerability detection
-- Tag mutability configuration
-- Built-in image lifecycle policies support
-
-**Key Resources:**
-- `aws_ecr_repository.ecr` - ECR repository for storing container images
-- Image scanning configuration for security compliance
-
-### `modules/s3-backend/`
-**S3 Backend Module**
-
-Provides remote state storage infrastructure for Terraform:
-- S3 bucket for storing Terraform state files
-- Versioning enabled for state file history and recovery
-- DynamoDB table for state locking to prevent concurrent modifications
-- Bucket ownership controls for security
-
-**Key Resources:**
-- `aws_s3_bucket.terraform_state` - S3 bucket for Terraform state
-- `aws_s3_bucket_versioning` - State versioning for backup and recovery
-- `aws_s3_bucket_ownership_controls` - Ownership enforcement
-- `aws_dynamodb_table` - State locking mechanism
-
-## Usage Example
-
-```bash
-# 1. Initialize the Terraform environment
-terraform init
-
-# 2. Review what will be created
-terraform plan -out=tfplan
-
-# 3. Apply the infrastructure
-terraform apply tfplan
-
-# 4. (Optional) Destroy all resources
-terraform destroy
-```
-
-## Project Structure
-
-- `main.tf` - Main provider and resource configurations
-- `backend.tf` - Backend configuration for remote state
-- `outputs.tf` - Output values after resource creation
-- `terraform.tfstate` - Current state file (local)
-- `charts/django-app/` - Helm chart for the Django application
-- `django/` - Django app, Dockerfile, and docker-compose setup
-- `modules/` - Reusable Terraform modules
-  - `vpc/` - VPC infrastructure
-  - `ecr/` - Container registry
-  - `s3-backend/` - Remote state backend
+---
 
 ## Notes
 
-- Store sensitive data (AWS keys, credentials) in environment variables or AWS credentials file
-- Use `terraform plan` before applying to review changes
-- Commit `tfplan` outputs for tracking infrastructure changes
-- Keep `terraform.tfstate` files secure and backed up
+- Never commit `terraform.tfvars` or files containing secrets
+- Always run `terraform plan` before `terraform apply`
+- `terraform.tfstate` contains sensitive data — keep it secure and use remote state in production
