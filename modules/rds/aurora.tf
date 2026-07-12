@@ -51,7 +51,7 @@ resource "aws_rds_cluster_parameter_group" "aurora" {
   description = "Aurora PG for ${var.name}"
 
   dynamic "parameter" {
-    for_each = var.parameters
+    for_each = local.all_parameters
     content {
       name         = parameter.key
       value        = parameter.value

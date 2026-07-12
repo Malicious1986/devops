@@ -282,7 +282,8 @@ module "rds" {
 | `subnet_public_ids` | `list(string)` | — | Public subnet IDs (used if `publicly_accessible = true`) |
 | `publicly_accessible` | `bool` | `false` | Expose DB over the internet |
 | `multi_az` | `bool` | `false` | Multi-AZ deployment (not available on free tier) |
-| `backup_retention_period` | `number` | `0` | Days to keep automated backups (0 = disabled) |
+| `backup_retention_period` | `number` | `1` | Days to keep automated backups (minimum 1) |
+| `db_port` | `number` | `5432` | Security group port (5432 for PostgreSQL, 3306 for MySQL) |
 | `parameters` | `map(string)` | `{}` | Parameter group key/value settings |
 | `tags` | `map(string)` | `{}` | Tags for all resources |
 
@@ -292,6 +293,7 @@ module "rds" {
 engine = "mysql"
 engine_version = "8.0"
 parameter_group_family_rds = "mysql8.0"
+db_port = 3306
 
 # Change instance class
 instance_class = "db.t3.medium"   # more resources
@@ -302,6 +304,7 @@ use_aurora = true
 engine_cluster = "aurora-mysql"
 engine_version_cluster = "8.0"
 parameter_group_family_aurora = "aurora-mysql8.0"
+db_port = 3306
 ```
 
 ### `modules/jenkins/`

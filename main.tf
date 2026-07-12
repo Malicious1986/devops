@@ -68,10 +68,10 @@ module "rds" {
   password                   = var.db_password
   subnet_private_ids         = module.vpc.private_subnets
   subnet_public_ids          = module.vpc.public_subnets
-  publicly_accessible        = true
+  publicly_accessible        = false
   vpc_id                     = module.vpc.vpc_id
   multi_az                   = false
-  backup_retention_period    = 0
+  backup_retention_period    = 1
   parameters = {
     max_connections              = "200"
     log_min_duration_statement   = "500"

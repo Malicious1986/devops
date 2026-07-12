@@ -34,6 +34,16 @@ output "aurora_port" {
 
 # --- Shared outputs ---
 
+output "endpoint" {
+  description = "Primary database endpoint (works for both RDS and Aurora)"
+  value       = var.use_aurora ? aws_rds_cluster.aurora[0].endpoint : aws_db_instance.standard[0].endpoint
+}
+
+output "port" {
+  description = "Database port (works for both RDS and Aurora)"
+  value       = var.use_aurora ? aws_rds_cluster.aurora[0].port : aws_db_instance.standard[0].port
+}
+
 output "security_group_id" {
   description = "ID of the security group assigned to RDS / Aurora"
   value       = aws_security_group.rds.id

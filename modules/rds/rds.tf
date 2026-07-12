@@ -27,7 +27,7 @@ resource "aws_db_parameter_group" "standard" {
   description = "Standard RDS PG for ${var.name}"
 
   dynamic "parameter" {
-    for_each = var.parameters
+    for_each = local.all_parameters
     content {
       name         = parameter.key
       value        = parameter.value
