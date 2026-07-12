@@ -1,3 +1,12 @@
+locals {
+  default_parameters = {
+    max_connections = "100"
+    log_statement   = "all"
+    work_mem        = "4096"
+  }
+  all_parameters = merge(local.default_parameters, var.parameters)
+}
+
 # Subnet group (used by both)
 resource "aws_db_subnet_group" "default" {
   name       = "${var.name}-subnet-group"
@@ -12,10 +21,11 @@ resource "aws_security_group" "rds" {
   vpc_id      = var.vpc_id
 
   ingress {
-    from_port   = 5432
-    to_port     = 5432
+    description = "Database access from allowed CIDRs"
+    from_port   = var.db_port
+    to_port     = var.db_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # або змінна
+    cidr_blocks = var.allowed_cidr_blocks
   }
 
   egress {

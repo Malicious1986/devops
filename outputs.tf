@@ -49,6 +49,23 @@ output "eks_node_role_arn" {
   value       = module.eks.eks_node_role_arn
 }
 
+#-------------RDS-----------------
+
+output "rds_endpoint" {
+  description = "Primary database endpoint"
+  value       = module.rds.endpoint
+}
+
+output "rds_port" {
+  description = "Database port"
+  value       = module.rds.port
+}
+
+output "rds_security_group_id" {
+  description = "Security group ID of the RDS / Aurora module"
+  value       = module.rds.security_group_id
+}
+
 output "jenkins_release" {
   value = module.jenkins.jenkins_release_name
 }

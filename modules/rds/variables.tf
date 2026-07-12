@@ -113,9 +113,21 @@ variable "multi_az" {
 }
 
 variable "backup_retention_period" {
-  description = "Number of days to retain automated backups (0 = disabled; free tier only supports 0)"
+  description = "Number of days to retain automated backups (minimum 1 day)"
   type        = number
-  default     = 0
+  default     = 1
+}
+
+variable "db_port" {
+  description = "Database port (5432 for PostgreSQL, 3306 for MySQL)"
+  type        = number
+  default     = 5432
+}
+
+variable "allowed_cidr_blocks" {
+  description = "List of CIDR blocks allowed to access the database port"
+  type        = list(string)
+  default     = []
 }
 
 variable "parameters" {
