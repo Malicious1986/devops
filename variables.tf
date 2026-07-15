@@ -30,3 +30,10 @@ variable "github_pat" {
   sensitive   = true
   default     = null
 }
+
+variable "grafana_admin_password" {
+  description = "Grafana admin password"
+  type        = string
+  sensitive   = true
+  default     = null
+}

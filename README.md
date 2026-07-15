@@ -167,9 +167,14 @@ kubectl get svc -n default django-app-django
 # Argo CD initial admin password
 kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d && echo
+
+# Grafana (port-forward — no external LoadBalancer)
+kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
+# open http://localhost:3000  (admin / $TF_VAR_grafana_admin_password)
 ```
 
 The Jenkins admin password is set via `TF_VAR_jenkins_admin_password`.
+The Grafana admin password is set via `TF_VAR_grafana_admin_password`.
 
 ---
 
@@ -312,6 +317,17 @@ Deploys Jenkins via Helm with JCasC (Jenkins Configuration as Code), a seed job 
 
 ### `modules/argo_cd/`
 Deploys Argo CD via Helm and a local Helm chart that registers the GitHub repository and creates the `django-app` Application resource for GitOps-based deployments.
+
+### `modules/monitoring/`
+Deploys the [`kube-prometheus-stack`](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack) Helm chart, which bundles:
+
+- **Prometheus** — scrapes metrics from all cluster nodes, pods, and Kubernetes components automatically
+- **Grafana** — pre-built dashboards for nodes, pods, deployments, and cluster resources; Prometheus datasource wired up automatically
+- **Alertmanager** — handles alert routing
+- **Node Exporter** — per-node CPU, memory, disk, network metrics (runs as DaemonSet)
+- **kube-state-metrics** — cluster-level state (deployments, replicas, PVCs, etc.)
+
+All resources are deployed into the `monitoring` namespace with persistent storage on `gp3` EBS volumes. Access Grafana via port-forward (see [Access Services](#access-services)).
 
 ---
 

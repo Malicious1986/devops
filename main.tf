@@ -85,11 +85,17 @@ module "rds" {
   }
 } 
 
+resource "kubernetes_namespace_v1" "jenkins" {
+  metadata {
+    name = "jenkins"
+  }
+  depends_on = [module.eks]
+}
 
 resource "kubernetes_persistent_volume_claim_v1" "jenkins_home" {
   metadata {
     name      = "jenkins"
-    namespace = "jenkins"
+    namespace = kubernetes_namespace_v1.jenkins.metadata[0].name
     annotations = {
       "meta.helm.sh/release-name"      = "jenkins"
       "meta.helm.sh/release-namespace" = "jenkins"
@@ -128,6 +134,12 @@ module "argo_cd" {
   chart_version = "5.46.4"
   github_pat    = var.github_pat
   depends_on    = [module.eks]
+}
+
+module "monitoring" {
+  source                 = "./modules/monitoring"
+  grafana_admin_password = var.grafana_admin_password
+  depends_on             = [module.eks, kubernetes_storage_class_v1.gp3]
 }
 
 resource "kubernetes_storage_class_v1" "gp3" {

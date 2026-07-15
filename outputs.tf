@@ -74,3 +74,20 @@ output "jenkins_namespace" {
   value = module.jenkins.jenkins_namespace
 }
 
+#-------------Monitoring-----------------
+
+output "grafana_service_name" {
+  description = "Kubernetes service name for Grafana"
+  value       = module.monitoring.grafana_service_name
+}
+
+output "prometheus_service_name" {
+  description = "Kubernetes service name for Prometheus"
+  value       = module.monitoring.prometheus_service_name
+}
+
+output "monitoring_namespace" {
+  description = "Namespace where the monitoring stack is deployed"
+  value       = module.monitoring.namespace
+}
+
