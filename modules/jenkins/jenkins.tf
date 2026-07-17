@@ -1,3 +1,18 @@
+locals {
+  jcasc_credentials = <<-YAML
+    credentials:
+      system:
+        domainCredentials:
+          - credentials:
+              - usernamePassword:
+                  scope: GLOBAL
+                  id: github-token
+                  username: Malicious1986
+                  password: ${var.github_pat != null ? var.github_pat : ""}
+                  description: GitHub PAT
+    YAML
+}
+
 resource "helm_release" "jenkins" {
   name             = "jenkins"
   namespace        = "jenkins"
@@ -13,6 +28,11 @@ resource "helm_release" "jenkins" {
       controller = {
         admin = {
           password = var.jenkins_admin_password
+        }
+        JCasC = {
+          configScripts = {
+            credentials = local.jcasc_credentials
+          }
         }
       }
     })

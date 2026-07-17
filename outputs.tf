@@ -51,6 +51,12 @@ output "eks_node_role_arn" {
 
 #-------------RDS-----------------
 
+output "rds_db_password" {
+  description = "Generated RDS master password (sensitive)"
+  value       = random_password.db_password.result
+  sensitive   = true
+}
+
 output "rds_endpoint" {
   description = "Primary database endpoint"
   value       = module.rds.endpoint

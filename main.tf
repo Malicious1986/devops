@@ -43,6 +43,12 @@ module "eks" {
   min_size        = 2                             # Мінімальна кількість нодів
 }
 
+resource "random_password" "db_password" {
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 module "rds" {
   source = "./modules/rds"
 
@@ -65,7 +71,7 @@ module "rds" {
   allocated_storage          = 20
   db_name                    = var.db_name
   username                   = "postgres"
-  password                   = var.db_password
+  password                   = var.db_password != null ? var.db_password : random_password.db_password.result
   subnet_private_ids         = module.vpc.private_subnets
   subnet_public_ids          = module.vpc.public_subnets
   publicly_accessible        = false
@@ -78,6 +84,8 @@ module "rds" {
     log_statement                = "all"
     work_mem                     = "4096"
   }
+
+  allowed_cidr_blocks        = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
 
   tags = {
     Environment = "dev"
@@ -125,6 +133,7 @@ module "jenkins" {
   oidc_provider_arn      = module.eks.oidc_provider_arn
   oidc_provider_url      = module.eks.oidc_provider_url
   jenkins_admin_password = var.jenkins_admin_password
+  github_pat             = var.github_pat
   depends_on             = [module.eks, kubernetes_storage_class_v1.gp3, kubernetes_persistent_volume_claim_v1.jenkins_home]
 }
 

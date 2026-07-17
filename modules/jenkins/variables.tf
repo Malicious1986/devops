@@ -23,3 +23,9 @@ variable "jenkins_admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "github_pat" {
+  description = "GitHub Personal Access Token for Jenkins credentials"
+  type        = string
+  sensitive   = true
+}

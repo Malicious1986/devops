@@ -5,7 +5,9 @@ metadata:
   name: {{ .Release.Name }}-django
 
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount | default 2 }}
+  {{- end }}
 
   selector:
     matchLabels:

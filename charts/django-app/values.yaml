@@ -21,8 +21,8 @@ autoscaling:
 replicaCount: 2
 
 secrets:
-  postgresPassword: "django_password"
-  secretKey: "django-secret-key"
+  postgresPassword: ""
+  secretKey: ""
 
 config:
   DEBUG: "1"
