@@ -50,8 +50,7 @@ spec:
             git config user.name "${COMMIT_NAME}"
 
             git add values.yaml
-            git commit -m "Update image tag to ${IMAGE_TAG}"
-            git push origin main
+            git diff --cached --quiet && echo "Tag already up to date, skipping commit" || (git commit -m "Update image tag to ${IMAGE_TAG}" && git push origin main)
           """
         }
       }
